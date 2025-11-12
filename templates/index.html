@@ -1,44 +1,50 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>ノーツ変換ツール</title>
-  <style>
-    body { font-family: sans-serif; text-align: center; margin: 50px; }
-    textarea { width: 90%; height: 300px; margin-top: 20px; font-size: 14px; }
-    button { margin-top: 15px; padding: 10px 25px; font-size: 16px; }
-  </style>
+<meta charset="UTF-8">
+<title>FNFノーツ変換ツール</title>
+<style>
+body {
+  font-family: monospace;
+  background: #111;
+  color: #eee;
+  padding: 20px;
+}
+textarea, input[type=file] {
+  width: 100%;
+  margin-top: 10px;
+}
+button {
+  margin-top: 10px;
+  background: #333;
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  cursor: pointer;
+}
+button:hover {
+  background: #555;
+}
+</style>
 </head>
 <body>
-  <h1>🎵 ノーツ変換ツール</h1>
-  <p>JSONファイルをアップロードして変換します。</p>
+<h2>🎵 FNFノーツ変換ツール</h2>
+<p>JSONをアップロードまたはペーストして「変換」を押してください。</p>
 
-  <form id="uploadForm">
-    <input type="file" id="fileInput" accept=".json" required />
-    <button type="submit">変換</button>
-  </form>
+<form method="POST" enctype="multipart/form-data">
+  <label>JSONファイルをアップロード：</label><br>
+  <input type="file" name="file"><br><br>
 
-  <h3>変換結果</h3>
-  <textarea id="result" readonly></textarea>
+  <label>または直接ペースト：</label><br>
+  <textarea name="json_text" rows="10" placeholder='{"song":{...}}'></textarea><br>
 
-  <script>
-    document.getElementById("uploadForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const file = document.getElementById("fileInput").files[0];
-      if (!file) return alert("ファイルを選択してください");
+  <button type="submit">変換</button>
+</form>
 
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch("/convert", { method: "POST", body: formData });
-      const data = await res.json();
-
-      if (data.result) {
-        document.getElementById("result").value = data.result;
-      } else {
-        alert("変換失敗: " + data.error);
-      }
-    });
-  </script>
+{% if result %}
+  <h3>変換結果：</h3>
+  <textarea rows="15" readonly>{{ result }}</textarea>
+  <button onclick="navigator.clipboard.writeText(document.querySelector('textarea[readonly]').value)">コピー</button>
+{% endif %}
 </body>
 </html>
