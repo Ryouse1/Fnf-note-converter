@@ -1,48 +1,54 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify
+import os
 import json
 
 app = Flask(__name__)
 
-@app.route('/')
+@app.route("/")
 def index():
-    return render_template('index.html')
+    return """
+    <h2>🎵 Rhythm JSON Converter</h2>
+    <p>POST /convert にリズムJSONを送ると、noteのタイミング・タイプ・長さを抽出して返します。</p>
+    <p>例: <code>curl -X POST -H "Content-Type: application/json" -d '{"sections":[{"notes":[{"timing":500,"type":"tap","length":0}]}]}' https://your-app-name.onrender.com/convert</code></p>
+    """
 
-@app.route('/convert', methods=['POST'])
-def convert():
-    file = request.files.get('jsonFile')
-    if not file:
-        return jsonify({'error': 'ファイルがありません'}), 400
-
+@app.route("/convert", methods=["POST"])
+def convert_json():
     try:
-        data = json.load(file)
-        output = []
+        data = request.get_json()
 
-        song = data.get("song", {})
-        bpm = song.get("bpm", 120)
-        notes = song.get("notes", [])
+        if not data:
+            return jsonify({"error": "JSONが送られていません"}), 400
 
-        for section in notes:
-            for note in section.get("sectionNotes", []):
-                start_ms = note[0]
-                note_type = note[1]
-                sustain_ms = note[2] if len(note) > 2 else 0
-                extra = note[3] if len(note) > 3 else 0
+        # "sections" キーが存在するかチェック
+        if "sections" not in data:
+            return jsonify({"error": "'sections'キーが見つかりません"}), 400
 
-                # ミリ秒 → 秒変換
-                time_sec = round(start_ms / 1000.0, 3)
-                sustain_sec = round(sustain_ms / 1000.0, 3)
+        result = []
 
-                line = f"{time_sec}: {note_type}: {sustain_sec}: {extra}"
-                output.append(line)
+        # 各sectionを処理
+        for section in data["sections"]:
+            notes = section.get("notes", [])
+            for note in notes:
+                # note内のデータを安全に取得
+                timing = note.get("timing", 0)
+                note_type = note.get("type", "unknown")
+                length = note.get("length", 0)
 
-        return jsonify({
-            "bpm": bpm,
-            "converted": output
-        })
+                # 変換結果としてリストに追加
+                result.append({
+                    "timing": timing,
+                    "type": note_type,
+                    "length": length
+                })
+
+        return jsonify({"converted": result})
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
 
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == "__main__":
+    # RenderではPORT環境変数を必ず使用する
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
