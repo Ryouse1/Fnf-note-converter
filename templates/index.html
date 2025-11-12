@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FNF Chart to TXT Converter</title>
+    <style>
+        body { font-family: sans-serif; margin: 30px; background: #1e1e1e; color: #f2f2f2; }
+        textarea { width: 100%; height: 200px; font-family: monospace; background: #111; color: #0f0; padding: 10px; border: 1px solid #555; border-radius: 8px; }
+        button { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 6px; margin-top: 10px; cursor: pointer; }
+        button:hover { background: #218838; }
+        pre { background: #111; color: #0f0; padding: 10px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <h2>🎵 FNF Chart → TXT 変換ツール</h2>
+    <p>FNFの譜面JSONを貼り付けて、「変換してダウンロード」を押すと <b>converted_notes.txt</b> が生成されます。</p>
+    <form method="POST">
+        <textarea name="chart" placeholder='{"song": {...}}'></textarea><br>
+        <button type="submit">変換してダウンロード</button>
+    </form>
+</body>
+</html>
