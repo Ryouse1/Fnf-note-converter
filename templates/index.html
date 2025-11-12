@@ -1,44 +1,27 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>🎵 JSON → Rhythm Text 変換ツール</title>
-  <style>
-    body { font-family: sans-serif; margin: 40px; background: #f8f8fa; color: #333; }
-    h1 { color: #4a6; }
-    textarea { width: 100%; height: 300px; font-family: monospace; }
-    .box { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 0 6px #ccc; }
-    button { background: #4a6; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
-    button:hover { background: #3a5; }
-    .error { color: red; margin-top: 10px; }
-  </style>
+    <meta charset="UTF-8">
+    <title>FNF JSON → TXT 変換ツール</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f6f6f6; }
+        textarea { width: 100%; height: 200px; }
+        .result { margin-top: 20px; white-space: pre; background: #fff; padding: 10px; border-radius: 8px; }
+    </style>
 </head>
 <body>
-  <div class="box">
-    <h1>🎵 JSON → Rhythm Text 変換ツール</h1>
+    <h1>🎵 JSON → TXT 変換ツール</h1>
     <form method="POST" enctype="multipart/form-data">
-      <p><input type="file" name="file" accept=".json"></p>
-      <button type="submit">変換</button>
+        <p>JSONファイルをアップロード:</p>
+        <input type="file" name="json_file"><br><br>
+        <p>またはJSONを直接ペースト:</p>
+        <textarea name="json_text" placeholder='{"song": {"notes": [...]}}'></textarea><br><br>
+        <button type="submit">変換する</button>
     </form>
 
-    {% if error %}
-      <p class="error">{{ error }}</p>
-    {% endif %}
-
     {% if result %}
-      <h3>変換結果 (コピーして使えます)</h3>
-      <textarea readonly>{{ result }}</textarea>
-      <p><button onclick="copyText()">📋 コピー</button></p>
+    <h2>変換結果:</h2>
+    <div class="result">{{ result }}</div>
     {% endif %}
-  </div>
-
-  <script>
-    function copyText() {
-      const textArea = document.querySelector('textarea');
-      textArea.select();
-      document.execCommand('copy');
-      alert("コピーしました！");
-    }
-  </script>
 </body>
 </html>
