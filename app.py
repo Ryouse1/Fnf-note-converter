@@ -1,54 +1,58 @@
-from flask import Flask, request, jsonify
+from flask import Flask, render_template, request, send_file
 import os
 import json
+import io
 
 app = Flask(__name__)
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def index():
-    return """
-    <h2>🎵 Rhythm JSON Converter</h2>
-    <p>POST /convert にリズムJSONを送ると、noteのタイミング・タイプ・長さを抽出して返します。</p>
-    <p>例: <code>curl -X POST -H "Content-Type: application/json" -d '{"sections":[{"notes":[{"timing":500,"type":"tap","length":0}]}]}' https://your-app-name.onrender.com/convert</code></p>
-    """
+    if request.method == "POST":
+        file = request.files.get("file")
+        if not file:
+            return render_template("index.html", error="ファイルを選択してください。")
 
-@app.route("/convert", methods=["POST"])
-def convert_json():
-    try:
-        data = request.get_json()
+        try:
+            data = json.load(file)
+            result_lines = []
 
-        if not data:
-            return jsonify({"error": "JSONが送られていません"}), 400
+            # 曲データに応じた変換
+            if "song" in data and "notes" in data["song"]:
+                for section in data["song"]["notes"]:
+                    bpm = section.get("bpm", 120)
+                    for note in section.get("sectionNotes", []):
+                        # note構造: [time(ms?), type, length?, extra?]
+                        time_val = note[0]
+                        note_type = note[1] if len(note) > 1 else 0
+                        length = note[2] if len(note) > 2 else 0
 
-        # "sections" キーが存在するかチェック
-        if "sections" not in data:
-            return jsonify({"error": "'sections'キーが見つかりません"}), 400
+                        # ミリ秒→秒変換（仮にbpmが使える場合）
+                        sec = round((time_val / (bpm / 60) / 1000) * 95, 3)
 
-        result = []
+                        result_lines.append(f"{sec}: {{type:{note_type}, length:{length}}}")
 
-        # 各sectionを処理
-        for section in data["sections"]:
-            notes = section.get("notes", [])
-            for note in notes:
-                # note内のデータを安全に取得
-                timing = note.get("timing", 0)
-                note_type = note.get("type", "unknown")
-                length = note.get("length", 0)
+            elif "sections" in data:
+                # 別フォーマット対応
+                for section in data["sections"]:
+                    for note in section.get("notes", []):
+                        t = note.get("timing", 0)
+                        ntype = note.get("type", "unknown")
+                        length = note.get("length", 0)
+                        result_lines.append(f"{t/1000:.3f}: {{type:{ntype}, length:{length}}}")
+            else:
+                return render_template("index.html", error="不明なJSON構造です。")
 
-                # 変換結果としてリストに追加
-                result.append({
-                    "timing": timing,
-                    "type": note_type,
-                    "length": length
-                })
+            # テキストにまとめる
+            result_text = "\n".join(result_lines)
 
-        return jsonify({"converted": result})
+            # コピペ用表示 + ダウンロードリンク用
+            return render_template("index.html", result=result_text)
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        except Exception as e:
+            return render_template("index.html", error=f"エラー: {e}")
 
+    return render_template("index.html")
 
 if __name__ == "__main__":
-    # RenderではPORT環境変数を必ず使用する
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
