@@ -1,22 +1,46 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-    <title>FNF Chart → TXT Converter (BPM対応)</title>
-    <style>
-        body { font-family: monospace; background: #181818; color: #eee; padding: 20px; }
-        textarea { width: 100%; height: 250px; background: #111; color: #0f0; border: 1px solid #444; padding: 10px; border-radius: 8px; }
-        button { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 6px; margin-top: 10px; cursor: pointer; }
-        button:hover { background: #218838; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FNF Chart Converter</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #111;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    form {
+      background: #222;
+      padding: 2em;
+      border-radius: 10px;
+    }
+    input[type=file] {
+      margin-bottom: 1em;
+    }
+    button {
+      background: #4caf50;
+      color: white;
+      padding: 0.6em 1.2em;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #66bb6a;
+    }
+  </style>
 </head>
 <body>
-    <h2>🎵 FNF Chart → TXT Converter (BPM対応)</h2>
-    <form method="POST">
-        <textarea name="chart" placeholder='{"song": {...}}'></textarea><br>
-        <button type="submit">変換してTXTをダウンロード</button>
-    </form>
-    {% if result %}
-        <p>{{ result }}</p>
-    {% endif %}
+  <h1>🎵 FNF JSON → TXT 変換ツール</h1>
+  <form action="/convert" method="post" enctype="multipart/form-data">
+    <input type="file" name="file" accept=".json" required><br>
+    <button type="submit">変換してダウンロード</button>
+  </form>
 </body>
 </html>
