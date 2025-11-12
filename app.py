@@ -1,7 +1,5 @@
-from flask import Flask, render_template, request, send_file
-import io
+from flask import Flask, render_template, request, jsonify
 import json
-import os
 
 app = Flask(__name__)
 
@@ -9,47 +7,42 @@ app = Flask(__name__)
 def index():
     return render_template('index.html')
 
-
 @app.route('/convert', methods=['POST'])
-def convert_chart():
-    file = request.files['file']
-    data = json.load(file)
+def convert():
+    file = request.files.get('jsonFile')
+    if not file:
+        return jsonify({'error': 'ファイルがありません'}), 400
 
-    output_lines = []
+    try:
+        data = json.load(file)
+        output = []
 
-    for section in data["song"]["notes"]:
-        bpm = section.get("bpm", 120)
-        step_to_seconds = (60 / bpm) / 4  # 1 step = 1/4 beat
+        song = data.get("song", {})
+        bpm = song.get("bpm", 120)
+        notes = song.get("notes", [])
 
-        for note in section["sectionNotes"]:
-            time = note[0]
-            note_type = note[1]
-            sustain = note[2] if len(note) > 2 and note[2] != 0 else 0
-            extra = note[-1] if len(note) > 3 else 0
+        for section in notes:
+            for note in section.get("sectionNotes", []):
+                start_ms = note[0]
+                note_type = note[1]
+                sustain_ms = note[2] if len(note) > 2 else 0
+                extra = note[3] if len(note) > 3 else 0
 
-            start_sec = round(time * step_to_seconds, 3)
-            sustain_sec = round(sustain * step_to_seconds, 3) if sustain > 0 else None
+                # ミリ秒 → 秒変換
+                time_sec = round(start_ms / 1000.0, 3)
+                sustain_sec = round(sustain_ms / 1000.0, 3)
 
-            if sustain_sec:
-                line = f"{{{start_sec}}}: {{{note_type}}}: {{{sustain_sec}}}: {{{extra}}}"
-            else:
-                line = f"{{{start_sec}}}: {{{note_type}}}: {{}}: {{{extra}}}"
+                line = f"{time_sec}: {note_type}: {sustain_sec}: {extra}"
+                output.append(line)
 
-            output_lines.append(line)
+        return jsonify({
+            "bpm": bpm,
+            "converted": output
+        })
 
-    txt_data = "\n".join(output_lines)
-    buffer = io.BytesIO()
-    buffer.write(txt_data.encode('utf-8'))
-    buffer.seek(0)
-
-    return send_file(
-        buffer,
-        as_attachment=True,
-        download_name="converted_chart.txt",
-        mimetype="text/plain"
-    )
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(debug=True)
