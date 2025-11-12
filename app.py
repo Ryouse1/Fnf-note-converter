@@ -1,58 +1,37 @@
-from flask import Flask, render_template, request, send_file
-import os
+from flask import Flask, render_template, request
 import json
-import io
 
 app = Flask(__name__)
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    result = ""
     if request.method == "POST":
-        file = request.files.get("file")
-        if not file:
-            return render_template("index.html", error="ファイルを選択してください。")
-
         try:
-            data = json.load(file)
+            # ファイルかテキスト入力のどちらかを取得
+            if "json_file" in request.files and request.files["json_file"].filename != "":
+                data = json.load(request.files["json_file"])
+            else:
+                data = json.loads(request.form["json_text"])
+
             result_lines = []
 
-            # 曲データに応じた変換
-            if "song" in data and "notes" in data["song"]:
-                for section in data["song"]["notes"]:
-                    bpm = section.get("bpm", 120)
-                    for note in section.get("sectionNotes", []):
-                        # note構造: [time(ms?), type, length?, extra?]
-                        time_val = note[0]
-                        note_type = note[1] if len(note) > 1 else 0
-                        length = note[2] if len(note) > 2 else 0
+            # BPMなど不要、notes部分をパース
+            for section in data.get("song", {}).get("notes", []):
+                for note in section.get("sectionNotes", []):
+                    time = note[0] / 1000 if note[0] > 10 else note[0]  # ms→秒換算っぽい補正
+                    note_type = int(note[1])
+                    hold = 0
+                    if len(note) > 2:
+                        hold = note[2] / 1000 if note[2] > 10 else note[2]
+                    result_lines.append(f"{{{time}}}: {{{note_type}}}: {{}}: {{{hold}}}")
 
-                        # ミリ秒→秒変換（仮にbpmが使える場合）
-                        sec = round((time_val / (bpm / 60) / 1000) * 95, 3)
-
-                        result_lines.append(f"{sec}: {{type:{note_type}, length:{length}}}")
-
-            elif "sections" in data:
-                # 別フォーマット対応
-                for section in data["sections"]:
-                    for note in section.get("notes", []):
-                        t = note.get("timing", 0)
-                        ntype = note.get("type", "unknown")
-                        length = note.get("length", 0)
-                        result_lines.append(f"{t/1000:.3f}: {{type:{ntype}, length:{length}}}")
-            else:
-                return render_template("index.html", error="不明なJSON構造です。")
-
-            # テキストにまとめる
-            result_text = "\n".join(result_lines)
-
-            # コピペ用表示 + ダウンロードリンク用
-            return render_template("index.html", result=result_text)
+            result = "\n".join(result_lines)
 
         except Exception as e:
-            return render_template("index.html", error=f"エラー: {e}")
+            result = f"変換エラー: {e}"
 
-    return render_template("index.html")
+    return render_template("index.html", result=result)
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=10000)
