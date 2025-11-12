@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, send_file
 import io
 import json
+import os
 
 app = Flask(__name__)
 
@@ -36,7 +37,6 @@ def convert_chart():
 
             output_lines.append(line)
 
-    # 文字列としてtxtに変換
     txt_data = "\n".join(output_lines)
     buffer = io.BytesIO()
     buffer.write(txt_data.encode('utf-8'))
@@ -51,4 +51,5 @@ def convert_chart():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
