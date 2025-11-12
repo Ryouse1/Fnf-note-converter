@@ -1,46 +1,57 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FNF Chart Converter</title>
+  <meta charset="UTF-8">
+  <title>FNF JSON タイミング変換ツール</title>
   <style>
-    body {
-      font-family: sans-serif;
-      background: #111;
-      color: #eee;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-    }
-    form {
-      background: #222;
-      padding: 2em;
-      border-radius: 10px;
-    }
-    input[type=file] {
-      margin-bottom: 1em;
-    }
-    button {
-      background: #4caf50;
-      color: white;
-      padding: 0.6em 1.2em;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #66bb6a;
-    }
+    body { background:#111; color:#eee; font-family:sans-serif; text-align:center; padding:20px; }
+    input, button { margin:8px; padding:8px 12px; border:none; border-radius:5px; }
+    button { background:#4caf50; color:#fff; cursor:pointer; }
+    button:hover { background:#43a047; }
+    #result { margin-top:20px; text-align:left; white-space:pre-wrap; background:#222; padding:10px; border-radius:8px; }
   </style>
 </head>
 <body>
-  <h1>🎵 FNF JSON → TXT 変換ツール</h1>
-  <form action="/convert" method="post" enctype="multipart/form-data">
-    <input type="file" name="file" accept=".json" required><br>
-    <button type="submit">変換してダウンロード</button>
+  <h1>🎵 FNF JSON → 秒・タイプ変換ツール</h1>
+  <form id="form">
+    <input type="file" id="jsonFile" accept=".json">
+    <button type="submit">変換</button>
   </form>
+  <div id="result"></div>
+
+  <script>
+    const form = document.getElementById('form');
+    const result = document.getElementById('result');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const file = document.getElementById('jsonFile').files[0];
+      if (!file) return alert('JSONファイルを選択してね');
+
+      const fd = new FormData();
+      fd.append('jsonFile', file);
+
+      result.textContent = '変換中...';
+      const res = await fetch('/convert', { method: 'POST', body: fd });
+      const data = await res.json();
+
+      if (data.error) {
+        result.textContent = '⚠️ エラー: ' + data.error;
+        return;
+      }
+
+      const text = `BPM: ${data.bpm}\n\n${data.converted.join('\n')}`;
+      result.textContent = text;
+
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'converted.txt';
+      a.textContent = '📄 TXTをダウンロード';
+      result.appendChild(document.createElement('br'));
+      result.appendChild(a);
+    });
+  </script>
 </body>
 </html>
