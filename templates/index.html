@@ -1,50 +1,78 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>FNFノーツ変換ツール</title>
-<style>
-body {
-  font-family: monospace;
-  background: #111;
-  color: #eee;
-  padding: 20px;
-}
-textarea, input[type=file] {
-  width: 100%;
-  margin-top: 10px;
-}
-button {
-  margin-top: 10px;
-  background: #333;
-  color: white;
-  padding: 8px 16px;
-  border: none;
-  cursor: pointer;
-}
-button:hover {
-  background: #555;
-}
-</style>
+  <meta charset="UTF-8">
+  <title>FNF譜面変換ツール</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #fafafa; }
+    textarea, pre { width: 100%; font-family: monospace; border-radius: 8px; }
+    textarea { height: 200px; padding: 10px; border: 1px solid #ccc; }
+    pre { background: #1e1e1e; color: #fff; padding: 10px; min-height: 200px; overflow-x: auto; }
+    button { padding: 10px 15px; margin-top: 10px; border: none; border-radius: 5px; cursor: pointer; background: #0078d4; color: white; }
+    button:hover { background: #005ea6; }
+    h1 { color: #333; }
+  </style>
 </head>
 <body>
-<h2>🎵 FNFノーツ変換ツール</h2>
-<p>JSONをアップロードまたはペーストして「変換」を押してください。</p>
+  <h1>FNF譜面変換ツール</h1>
 
-<form method="POST" enctype="multipart/form-data">
-  <label>JSONファイルをアップロード：</label><br>
-  <input type="file" name="file"><br><br>
+  <form id="convert-form">
+    <p>JSONファイルをアップロードするか、下に貼り付けてください：</p>
+    <input type="file" id="file-input" accept=".json"><br><br>
+    <textarea id="chart_data" placeholder="ここにJSONを貼り付けてもOK"></textarea><br>
+    <button type="submit">変換する</button>
+  </form>
 
-  <label>または直接ペースト：</label><br>
-  <textarea name="json_text" rows="10" placeholder='{"song":{...}}'></textarea><br>
+  <h2>変換結果</h2>
+  <pre id="result"></pre>
 
-  <button type="submit">変換</button>
-</form>
+  <button id="copy-btn" style="display:none;">コピー</button>
+  <button id="download-btn" style="display:none;">txtダウンロード</button>
 
-{% if result %}
-  <h3>変換結果：</h3>
-  <textarea rows="15" readonly>{{ result }}</textarea>
-  <button onclick="navigator.clipboard.writeText(document.querySelector('textarea[readonly]').value)">コピー</button>
-{% endif %}
+  <script>
+    document.getElementById('convert-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const file = document.getElementById('file-input').files[0];
+      const chart_data = document.getElementById('chart_data').value;
+      const formData = new FormData();
+      if (file) formData.append("file", file);
+      if (chart_data) formData.append("chart_data", chart_data);
+
+      const res = await fetch("/convert", { method: "POST", body: formData });
+      const data = await res.json();
+
+      const resultEl = document.getElementById('result');
+      const copyBtn = document.getElementById('copy-btn');
+      const downloadBtn = document.getElementById('download-btn');
+
+      if (data.result) {
+        resultEl.textContent = data.result;
+        copyBtn.style.display = "inline-block";
+        downloadBtn.style.display = "inline-block";
+      } else {
+        resultEl.textContent = data.error || "変換失敗";
+      }
+    });
+
+    document.getElementById('copy-btn').addEventListener('click', () => {
+      const text = document.getElementById('result').textContent;
+      navigator.clipboard.writeText(text);
+      alert("コピーしました！");
+    });
+
+    document.getElementById('download-btn').addEventListener('click', async () => {
+      const content = document.getElementById('result').textContent;
+      const formData = new FormData();
+      formData.append("content", content);
+      const res = await fetch("/download", { method: "POST", body: formData });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "converted.txt";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  </script>
 </body>
 </html>
