@@ -39,4 +39,5 @@ def index():
     return render_template("index.html", converted_text=converted_text)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # 0.0.0.0 で外部アクセス可能に、portも指定
+    app.run(host="0.0.0.0", port=5000, debug=True)
