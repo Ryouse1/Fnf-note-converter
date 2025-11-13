@@ -5,12 +5,6 @@ import os
 
 app = Flask(__name__)
 
-# ノーツタイプ対応表
-DIRECTION_MAP = {
-    0: "左", 1: "下", 2: "上", 3: "右",
-    4: "左", 5: "下", 6: "上", 7: "右"
-}
-
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -20,7 +14,7 @@ def convert():
     file = request.files.get("file")
     text_data = request.form.get("chart_data")
 
-    # JSON読み込み
+    # JSONの取得
     if file:
         try:
             data = json.load(file)
@@ -36,17 +30,27 @@ def convert():
 
     converted_lines = []
 
-    # song -> notes -> sectionNotes
+    # FNFチャート構造からノーツを変換
     if "song" in data and "notes" in data["song"]:
         for section in data["song"]["notes"]:
             for note in section.get("sectionNotes", []):
                 if len(note) >= 3:
-                    sec = float(note[0]) / 1000.0
-                    note_type = int(note[1])
-                    sustain = float(note[2]) / 1000.0
-                    direction = DIRECTION_MAP.get(note_type, "不明")
+                    time_ms = float(note[0])
+                    direction_raw = int(note[1])
+                    sustain_ms = float(note[2])
 
-                    line = f"{{{round(sec,3)}}}: {{{direction}}}: {{}}: {{{round(sustain,3)}}}"
+                    # 秒に変換
+                    sec = time_ms / 1000.0
+                    sustain = sustain_ms / 1000.0
+
+                    # プレイヤーと方向を数値で設定
+                    # プレイヤー2 → 1〜4、プレイヤー1 → 5〜8
+                    if direction_raw in [0, 1, 2, 3]:
+                        note_type = direction_raw + 1  # 1〜4
+                    else:
+                        note_type = direction_raw + 1  # 念のため一致させる
+
+                    line = f"{{{round(sec,3)}}}: {{{note_type}}}: {{}}: {{{round(sustain,3)}}}"
                     converted_lines.append(line)
     else:
         return jsonify({"error": "JSON内に'song'や'notes'が見つかりません"}), 400
@@ -66,7 +70,6 @@ def download():
     return send_file(buf, as_attachment=True, download_name="converted.txt", mimetype='text/plain')
 
 
-# 🔥 Renderが自動で環境変数PORTを割り当てる
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
