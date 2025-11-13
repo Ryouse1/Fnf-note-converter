@@ -1,53 +1,72 @@
-from flask import Flask, render_template, request
+from flask import Flask, request, render_template, jsonify, send_file
 import json
+import io
 
 app = Flask(__name__)
 
-@app.route("/", methods=["GET", "POST"])
+# ノーツタイプ対応表
+DIRECTION_MAP = {
+    1: "左", 2: "下", 3: "上", 4: "右",
+    5: "左", 6: "下", 7: "上", 8: "右"
+}
+
+@app.route('/')
 def index():
-    result = None
-    if request.method == "POST":
-        raw_json = ""
-        # ファイルアップロード優先、なければテキスト入力
-        if "file" in request.files and request.files["file"].filename != "":
-            raw_json = request.files["file"].read().decode("utf-8")
-        else:
-            raw_json = request.form.get("json_text", "")
+    return render_template('index.html')
 
+@app.route('/convert', methods=['POST'])
+def convert():
+    file = request.files.get("file")
+    text_data = request.form.get("chart_data")
+
+    if file:
         try:
-            # JSON読み込み
-            data = json.loads(raw_json)
-            notes_data = data.get("song", {}).get("notes", [])
-            all_notes = []
+            data = json.load(file)
+        except Exception:
+            return jsonify({"error": "JSONファイルの読み込みに失敗しました"}), 400
+    elif text_data:
+        try:
+            data = json.loads(text_data)
+        except json.JSONDecodeError:
+            return jsonify({"error": "JSONの形式が正しくありません"}), 400
+    else:
+        return jsonify({"error": "JSONデータをアップロードまたは貼り付けてください"}), 400
 
-            # 全セクションからノーツ抽出
-            for section in notes_data:
-                for note in section.get("sectionNotes", []):
-                    # note = [time(ms), type, sustain(ms), ...]
-                    time_ms = note[0]
-                    note_type = int(note[1]) + 1  # 0-based → 1〜8に補正
-                    sustain_ms = note[2] if len(note) > 2 else 0
-                    all_notes.append((time_ms, note_type, sustain_ms))
+    converted_lines = []
 
-            # 時間でソート
-            all_notes.sort(key=lambda x: x[0])
+    # 譜面構造を安全に辿る
+    if "song" in data and "notes" in data["song"]:
+        for section in data["song"]["notes"]:
+            for note in section.get("sectionNotes", []):
+                if len(note) >= 3:
+                    sec = float(note[0]) / 1000.0  # 秒換算（ms→s）
+                    note_type = int(note[1])
+                    sustain = float(note[2]) / 1000.0  # 伸ばしノーツ
+                    end_sec = sec + sustain
 
-            # 整形
-            result_lines = []
-            for time_ms, note_type, sustain_ms in all_notes:
-                time_sec = time_ms / 1000
-                sustain_sec = sustain_ms / 1000
-                line = f"{{{time_sec:.3f}}}: {{{note_type}}}: {{}}: {{{sustain_sec:.3f}}}"
-                result_lines.append(line)
+                    length = round(sustain, 3)
+                    direction = DIRECTION_MAP.get(note_type + 1, "不明")
 
-            result = "\n".join(result_lines)
+                    line = f"{{{round(sec,3)}}}: {{{direction}}}: {{}}: {{{length}}}"
+                    converted_lines.append(line)
+    else:
+        return jsonify({"error": "JSON内に'song'や'notes'が見つかりません"}), 400
 
-        except Exception as e:
-            result = f"⚠️ JSON解析エラー: {e}"
+    result_text = "\n".join(converted_lines)
 
-    return render_template("index.html", result=result)
+    # 結果を返す
+    return jsonify({"result": result_text})
 
+@app.route('/download', methods=['POST'])
+def download():
+    content = request.form.get("content", "")
+    if not content:
+        return jsonify({"error": "内容が空です"}), 400
+
+    buf = io.BytesIO()
+    buf.write(content.encode('utf-8'))
+    buf.seek(0)
+    return send_file(buf, as_attachment=True, download_name="converted.txt", mimetype='text/plain')
 
 if __name__ == "__main__":
-    # Renderでも動くようにポート明示
     app.run(host="0.0.0.0", port=10000)
