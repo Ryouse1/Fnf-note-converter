@@ -1,13 +1,14 @@
 from flask import Flask, request, render_template, jsonify, send_file
 import json
 import io
+import os
 
 app = Flask(__name__)
 
 # ノーツタイプ対応表
 DIRECTION_MAP = {
-    1: "左", 2: "下", 3: "上", 4: "右",
-    5: "左", 6: "下", 7: "上", 8: "右"
+    0: "左", 1: "下", 2: "上", 3: "右",
+    4: "左", 5: "下", 6: "上", 7: "右"
 }
 
 @app.route('/')
@@ -19,6 +20,7 @@ def convert():
     file = request.files.get("file")
     text_data = request.form.get("chart_data")
 
+    # JSON読み込み
     if file:
         try:
             data = json.load(file)
@@ -34,27 +36,22 @@ def convert():
 
     converted_lines = []
 
-    # 譜面構造を安全に辿る
+    # song -> notes -> sectionNotes
     if "song" in data and "notes" in data["song"]:
         for section in data["song"]["notes"]:
             for note in section.get("sectionNotes", []):
                 if len(note) >= 3:
-                    sec = float(note[0]) / 1000.0  # 秒換算（ms→s）
+                    sec = float(note[0]) / 1000.0
                     note_type = int(note[1])
-                    sustain = float(note[2]) / 1000.0  # 伸ばしノーツ
-                    end_sec = sec + sustain
+                    sustain = float(note[2]) / 1000.0
+                    direction = DIRECTION_MAP.get(note_type, "不明")
 
-                    length = round(sustain, 3)
-                    direction = DIRECTION_MAP.get(note_type + 1, "不明")
-
-                    line = f"{{{round(sec,3)}}}: {{{direction}}}: {{}}: {{{length}}}"
+                    line = f"{{{round(sec,3)}}}: {{{direction}}}: {{}}: {{{round(sustain,3)}}}"
                     converted_lines.append(line)
     else:
         return jsonify({"error": "JSON内に'song'や'notes'が見つかりません"}), 400
 
     result_text = "\n".join(converted_lines)
-
-    # 結果を返す
     return jsonify({"result": result_text})
 
 @app.route('/download', methods=['POST'])
@@ -68,5 +65,8 @@ def download():
     buf.seek(0)
     return send_file(buf, as_attachment=True, download_name="converted.txt", mimetype='text/plain')
 
+
+# 🔥 Renderが自動で環境変数PORTを割り当てる
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
